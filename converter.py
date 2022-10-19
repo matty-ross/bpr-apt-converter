@@ -1,4 +1,3 @@
-from nis import match
 import struct
 import os
 from typing import BinaryIO
