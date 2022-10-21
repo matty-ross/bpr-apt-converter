@@ -12,6 +12,48 @@ def swap(fp: BinaryIO, fmt: str) -> int:
     return struct.unpack(fmt, buff)[0]
 
 
+def convert_action_records(fp: BinaryIO, apt_data_offset: int, action_records_offset: int) -> None:
+    fp.seek(apt_data_offset + action_records_offset, os.SEEK_SET)
+    while True:
+        action_type = swap(fp, "B")
+        if action_type == 0:
+            break
+        elif action_type <= 0x76:
+            continue
+        elif action_type in [0x77, 0xB4, 0xB7, ]:
+            pass
+        elif action_type in [0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F, 0x80, 0x82, 0x84, 0x85, 0x86, 0x89, 0x8A, 0x8D, 0x90, 0x91, 0x92, 0x93, 0x95, 0x97, 0x98, 0x9A, 0x9C, 0x9E, 0xA0, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, ]:
+            continue
+        elif action_type in [0x81, 0x87, 0x99, 0x9D, 0x9F, 0xB8, ]:
+            swap(fp, "<L")
+        elif action_type in [0x83, ]:
+            pass
+        elif action_type in [0x88, 0x96, ]:
+            swap(fp, "<L")
+            swap(fp, "<L")
+            # TODO: follow the pointer
+        elif action_type in [0x8B, ]:
+            pass
+        elif action_type in [0x8C, ]:
+            pass
+        elif action_type in [0x8E, ]:
+            pass
+        elif action_type in [0x8F, ]:
+            pass
+        elif action_type in [0x94, ]:
+            pass
+        elif action_type in [0x9B, ]:
+            pass
+        elif action_type in [0xA1, 0xA4, 0xA5, 0xA6, 0xA7, ]:
+            pass
+        elif action_type in [0xA2, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB5, ]:
+            swap(fp, "B")
+        elif action_type in [0xA3, 0xB6, ]:
+            pass
+        else:
+            assert False, "Unknown action type"
+
+
 def convert_frame(fp: BinaryIO, apt_data_offset: int, frame_offset: int) -> None:
     fp.seek(apt_data_offset + frame_offset, os.SEEK_SET)
     item_count = swap(fp, "<L")
@@ -25,11 +67,25 @@ def convert_frame(fp: BinaryIO, apt_data_offset: int, frame_offset: int) -> None
         frame_item_type = swap(fp, "<L")
 
         if frame_item_type == 1: # action
-            pass
+            action_records_offset = swap(fp, "<L")
+            convert_action_records(fp, apt_data_offset, action_records_offset)
         elif frame_item_type == 2: # frame label
-            pass
+            swap(fp, "<L")
+            swap(fp, "<H")
+            swap(fp, "<H")
+            swap(fp, "<L")
         elif frame_item_type == 3: # place object
-            pass
+            flags = swap(fp, "<L")
+            swap(fp, "<L")
+            swap(fp, "<L")
+            for _ in range(6):
+                swap(fp, "<L")
+            swap(fp, "<L")
+            swap(fp, "<L")
+            swap(fp, "<L")
+            swap(fp, "<L")
+            swap(fp, "<L")
+            clip_actions_offset = swap(fp, "<L")
         elif frame_item_type == 4: # remove object
             swap(fp, "<L")
         elif frame_item_type == 5: # background color
@@ -39,7 +95,11 @@ def convert_frame(fp: BinaryIO, apt_data_offset: int, frame_offset: int) -> None
         elif frame_item_type == 7: # start sound stream
             assert False, "Should be unused"
         elif frame_item_type == 8: # init action
-            pass
+            swap(fp, "<L")
+            action_records_offset = swap(fp, "<L")
+            convert_action_records(fp, apt_data_offset, action_records_offset)
+        else:
+            assert False, "Unknown frame item type"
 
 
 def convert_character(fp: BinaryIO, apt_data_offset: int, character_offset: int) -> None:
@@ -119,6 +179,8 @@ def convert_character(fp: BinaryIO, apt_data_offset: int, character_offset: int)
         assert False, "Should be unused"
     elif character_type == 12: # video
         assert False, "Should be unused"
+    else:
+        assert False, "Unknown character type"
 
 
 def convert(fp: BinaryIO) -> None:
