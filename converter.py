@@ -13,6 +13,7 @@ def swap(fp: BinaryIO, fmt: str) -> int:
 
 
 def convert_action_records(fp: BinaryIO, apt_data_offset: int, action_records_offset: int) -> None:
+    return # TODO: implement all action types
     fp.seek(apt_data_offset + action_records_offset, os.SEEK_SET)
     while True:
         action_type = swap(fp, "B")
@@ -21,35 +22,35 @@ def convert_action_records(fp: BinaryIO, apt_data_offset: int, action_records_of
         elif action_type <= 0x76:
             continue
         elif action_type in [0x77, 0xB4, 0xB7, ]:
-            pass
+            assert False, "Unimplemented"
         elif action_type in [0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F, 0x80, 0x82, 0x84, 0x85, 0x86, 0x89, 0x8A, 0x8D, 0x90, 0x91, 0x92, 0x93, 0x95, 0x97, 0x98, 0x9A, 0x9C, 0x9E, 0xA0, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, ]:
             continue
         elif action_type in [0x81, 0x87, 0x99, 0x9D, 0x9F, 0xB8, ]:
             swap(fp, "<L")
         elif action_type in [0x83, ]:
-            pass
+            assert False, "Unimplemented"
         elif action_type in [0x88, 0x96, ]:
             swap(fp, "<L")
             swap(fp, "<L")
             # TODO: follow the pointer
         elif action_type in [0x8B, ]:
-            pass
+            assert False, "Unimplemented"
         elif action_type in [0x8C, ]:
-            pass
+            assert False, "Unimplemented"
         elif action_type in [0x8E, ]:
-            pass
+            assert False, "Unimplemented"
         elif action_type in [0x8F, ]:
-            pass
+            assert False, "Unimplemented"
         elif action_type in [0x94, ]:
-            pass
+            assert False, "Unimplemented"
         elif action_type in [0x9B, ]:
-            pass
+            assert False, "Unimplemented"
         elif action_type in [0xA1, 0xA4, 0xA5, 0xA6, 0xA7, ]:
-            pass
+            assert False, "Unimplemented"
         elif action_type in [0xA2, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB5, ]:
             swap(fp, "B")
         elif action_type in [0xA3, 0xB6, ]:
-            pass
+            assert False, "Unimplemented"
         else:
             assert False, "Unknown action type"
 
@@ -183,6 +184,40 @@ def convert_character(fp: BinaryIO, apt_data_offset: int, character_offset: int)
         assert False, "Unknown character type"
 
 
+def convert_vertex(fp: BinaryIO, vertex_offset: int) -> None:
+    fp.seek(vertex_offset)
+    swap(fp, "<L")
+    swap(fp, "<L")
+    fp.seek(0x4, os.SEEK_CUR)
+    swap(fp, "<L")
+    swap(fp, "<L")
+
+
+def convert_geometry_data(fp: BinaryIO, geometry_data_offset: int) -> None:
+    fp.seek(geometry_data_offset)
+    swap(fp, "<L")
+    swap(fp, "<L")
+    swap(fp, "<L")
+    swap(fp, "<L")
+    vertices_count = swap(fp, "<L")
+    vertices_offset = swap(fp, "<L")
+    for i in range(vertices_count):
+        fp.seek(vertices_offset + i * 0x4, os.SEEK_SET)
+        vertex_offset = swap(fp, "<L")
+        convert_vertex(fp, vertex_offset)
+
+
+def convert_geometry_record(fp: BinaryIO, geometry_record_offset: int) -> None:
+    fp.seek(geometry_record_offset, os.SEEK_SET)
+    swap(fp, "<L")
+    geometry_data_count = swap(fp, "<L")
+    geometry_data_offsets = swap(fp, "<L")
+    for i in range(geometry_data_count):
+        fp.seek(geometry_data_offsets + i * 0x4, os.SEEK_SET)
+        geometry_data_offset = swap(fp, "<L")
+        convert_geometry_data(fp, geometry_data_offset)
+
+
 def convert(fp: BinaryIO) -> None:
     # header
     fp.seek(0x0, os.SEEK_SET)
@@ -212,6 +247,17 @@ def convert(fp: BinaryIO) -> None:
         character_offset = swap(fp, "<L")
         if character_offset != 0:
             convert_character(fp, apt_data_offset, character_offset)
+
+    # geometry
+    fp.seek(geometry_offset, os.SEEK_SET)
+    geometry_record_count = swap(fp, "<L")
+    swap(fp, "<L")
+    geometry_records_offset = swap(fp, "<L")
+    for i in range(geometry_record_count):
+        fp.seek(geometry_records_offset + i * 0x4, os.SEEK_SET)
+        geometry_record_offset = swap(fp, "<L")
+        convert_geometry_record(fp, geometry_record_offset)
+
 
 
 def main() -> None:
