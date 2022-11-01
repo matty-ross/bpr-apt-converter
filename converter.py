@@ -22,6 +22,15 @@ class AptFileConverter:
             9: AptFileConverter.convert_character_movie,
         }
 
+        AptFileConverter.FRAME_ITEMS_FUNCTION = {
+            1: AptFileConverter.convert_frame_item_action,
+            2: AptFileConverter.convert_frame_item_frame_label,
+            3: AptFileConverter.convert_frame_item_place_object,
+            4: AptFileConverter.convert_frame_item_remove_object,
+            5: AptFileConverter.convert_frame_item_background_color,
+            8: AptFileConverter.convert_frame_item_init_action,
+        }
+
 
     def convert(self) -> None:
         self.convert_header()
@@ -105,6 +114,10 @@ class AptFileConverter:
         frames_offset = self.swap("<L")
         assert self.swap("<L") == 0, "Should be NULL."
 
+        for i in range(frames_count):
+            frame_offset = frames_offset + i * 0x8
+            self.convert_frame(frame_offset)
+
 
     def convert_character_image(self, character_offset: int) -> None:
         self.fp.seek(self.apt_data_offset + character_offset, os.SEEK_SET)
@@ -127,6 +140,10 @@ class AptFileConverter:
         exports_offset = self.swap("<L")
         self.swap("<L")
 
+        for i in range(frames_count):
+            frame_offset = frames_offset + i * 0x8
+            self.convert_frame(frame_offset)
+
         for i in range(characters_count):
             self.fp.seek(self.apt_data_offset + characters_offsets + i * 0x4, os.SEEK_SET)
             character_offset = self.swap("<L")
@@ -140,6 +157,76 @@ class AptFileConverter:
         for i in range(exports_count):
             export_offset = exports_offset + i * 0x8
             self.convert_export(export_offset)
+
+
+    def convert_frame(self, frame_offset: int) -> None:
+        self.fp.seek(self.apt_data_offset + frame_offset, os.SEEK_SET)
+        frame_items_count = self.swap("<L")
+        frame_items_offsets = self.swap("<L")
+
+        for i in range(frame_items_count):
+            self.fp.seek(self.apt_data_offset + frame_items_offsets + i * 0x4, os.SEEK_SET)
+            frame_item_offset = self.swap("<L")
+            self.convert_frame_item(frame_item_offset)
+
+
+    def convert_frame_item(self, frame_item_offset: int) -> None:
+        if frame_item_offset == 0:
+            return
+        
+        self.fp.seek(self.apt_data_offset + frame_item_offset, os.SEEK_SET)
+        frame_item_type = self.swap("<L")
+
+        fn = AptFileConverter.FRAME_ITEMS_FUNCTION.get(frame_item_type)
+        assert fn is not None, f"Frame item {frame_item_type} should be unused."
+        fn(self, frame_item_offset + 0x4)
+
+
+    def convert_frame_item_action(self, frame_item_offset: int) -> None:
+        self.fp.seek(self.apt_data_offset + frame_item_offset, os.SEEK_SET)
+        actions_offset = self.swap("<L")
+        # TODO
+
+
+    def convert_frame_item_frame_label(self, frame_item_offset: int) -> None:
+        self.fp.seek(self.apt_data_offset + frame_item_offset, os.SEEK_SET)
+        self.swap("<L")
+        self.swap("<H")
+        self.swap("<H")
+        self.swap("<L")
+
+
+    def convert_frame_item_place_object(self, frame_item_offset: int) -> None:
+        self.fp.seek(self.apt_data_offset + frame_item_offset, os.SEEK_SET)
+        flags = self.swap("<L")
+        self.swap("<L")
+        self.swap("<L")
+        for _ in range(6):
+            self.swap("<L")
+        self.swap("<L")
+        self.swap("<L")
+        self.swap("<L")
+        self.swap("<L")
+        self.swap("<L")
+        clip_actions_offset = self.swap("<L")
+        # TODO
+
+
+    def convert_frame_item_remove_object(self, frame_item_offset: int) -> None:
+        self.fp.seek(self.apt_data_offset + frame_item_offset, os.SEEK_SET)
+        self.swap("<L")
+
+
+    def convert_frame_item_background_color(self, frame_item_offset: int) -> None:
+        self.fp.seek(self.apt_data_offset + frame_item_offset, os.SEEK_SET)
+        self.swap("<L")
+
+
+    def convert_frame_item_init_action(self, frame_item_offset: int) -> None:
+        self.fp.seek(self.apt_data_offset + frame_item_offset, os.SEEK_SET)
+        self.swap("<L")
+        actions_offset = self.swap("<L")
+        # TODO
 
 
     def convert_const_file(self) -> None:
