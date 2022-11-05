@@ -185,7 +185,8 @@ class AptFileConverter:
     def convert_frame_item_action(self, frame_item_offset: int) -> None:
         self.fp.seek(self.apt_data_offset + frame_item_offset, os.SEEK_SET)
         actions_offset = self.swap("<L")
-        # TODO
+        
+        self.convert_actions(actions_offset)
 
 
     def convert_frame_item_frame_label(self, frame_item_offset: int) -> None:
@@ -198,7 +199,7 @@ class AptFileConverter:
 
     def convert_frame_item_place_object(self, frame_item_offset: int) -> None:
         self.fp.seek(self.apt_data_offset + frame_item_offset, os.SEEK_SET)
-        flags = self.swap("<L")
+        self.swap("<L")
         self.swap("<L")
         self.swap("<L")
         for _ in range(6):
@@ -209,7 +210,30 @@ class AptFileConverter:
         self.swap("<L")
         self.swap("<L")
         clip_actions_offset = self.swap("<L")
-        # TODO
+        
+        self.convert_clip_actions(clip_actions_offset)
+
+
+    def convert_clip_actions(self, clip_actions_offset: int) -> None:
+        if clip_actions_offset == 0:
+            return
+
+        self.fp.seek(self.apt_data_offset + clip_actions_offset, os.SEEK_SET)
+        clip_action_records_count = self.swap("<L")
+        clip_action_records_offset = self.swap("<L")
+
+        for i in range(clip_action_records_count):
+            clip_action_record_offset = clip_action_records_offset + i * 0xC
+            self.convert_clip_action_record(clip_action_record_offset)
+
+
+    def convert_clip_action_record(self, clip_action_record_offset: int) -> None:
+        self.fp.seek(self.apt_data_offset + clip_action_record_offset, os.SEEK_SET)
+        self.swap("<L")
+        self.swap("<L")
+        actions_offset = self.swap("<L")
+
+        self.convert_actions(actions_offset)
 
 
     def convert_frame_item_remove_object(self, frame_item_offset: int) -> None:
@@ -226,7 +250,33 @@ class AptFileConverter:
         self.fp.seek(self.apt_data_offset + frame_item_offset, os.SEEK_SET)
         self.swap("<L")
         actions_offset = self.swap("<L")
-        # TODO
+        
+        self.convert_actions(actions_offset)
+
+
+    def convert_actions(self, actions_offset: int) -> None:
+        if actions_offset == 0:
+            return
+
+        self.fp.seek(self.apt_data_offset + actions_offset, os.SEEK_SET)
+        while True:
+            action = self.swap("B")
+            if action == 0:
+                break
+            elif action <= 0x76:
+                continue
+            elif action in [0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F, 0x80, 0x82, 0x84, 0x85, 0x86, 0x89, 0x8A, 0x8D, 0x90, 0x91, 0x92, 0x93, 0x95, 0x97, 0x98, 0x9A, 0x9C, 0x9E, 0xA0, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, ]:
+                continue
+            elif action in [0xA2, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB5, ]:
+                self.fp.seek(0x1, os.SEEK_CUR)
+            elif action in [0x81, 0x87, 0x99, 0x9D, 0x9F, 0xB8, ]:
+                self.align()
+                self.fp.seek(0x4, os.SEEK_CUR)
+            elif action in [0xA1, 0xA4, 0xA5, 0xA6, 0xA7, ]:
+                self.align()
+                self.swap("<L")
+            # TODO
+                
 
 
     def convert_const_file(self) -> None:
@@ -302,6 +352,13 @@ class AptFileConverter:
         self.fp.seek(-size, os.SEEK_CUR)
         self.fp.write(buff)
         return struct.unpack(fmt, buff)[0]
+
+
+    def align(self) -> None:
+        offset = self.fp.tell()
+        offset += 0x3
+        offset &= 0xFC
+        self.fp.seek(offset, os.SEEK_SET)
 
 
 
