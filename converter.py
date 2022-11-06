@@ -258,75 +258,109 @@ class AptFileConverter:
         if actions_offset == 0:
             return
 
-        self.fp.seek(self.apt_data_offset + actions_offset, os.SEEK_SET)
+        # switch statement at 0x006B6730
+
+        current_offset = self.apt_data_offset + actions_offset
         while True:
+            self.fp.seek(current_offset, os.SEEK_SET)
             action = self.swap("B")
-            # 006B6730
             if action == 0:
                 break
             elif action in [0x77, 0xB4, 0xB7, ]: # 00
                 # align 0x1
                 # size 0x4
                 self.swap("<L")
+                current_offset = self.fp.tell()
             elif action in [0x81, 0x87, 0x99, 0x9D, 0x9F, 0xB8, ]: # 01
                 # align 0x4
                 # size 0x4
                 self.align()
                 self.swap("<L")
+                current_offset = self.fp.tell()
             elif action in [0x83, ]: # 02
                 # align 0x4
                 # size 0x8
                 self.align()
-                pass # TODO
+                self.swap("<L") # TODO: where does it point to?
+                self.swap("<L") # TODO: where does it point to?
+                current_offset = self.fp.tell()
             elif action in [0x88, 0x96, ]: # 03
                 # align 0x4
                 # size 0x8
                 self.align()
-                pass # TODO
+                self.swap("<L")
+                self.swap("<L") # TODO: follow the pointer
+                current_offset = self.fp.tell()
+                # TODO
             elif action in [0x8B, ]: # 04
                 # align 0x4
                 # size 0x4
                 self.align()
-                pass # TODO
+                self.swap("<L") # TODO: where does it point to?
+                current_offset = self.fp.tell()
             elif action in [0x8C, ]: # 05
                 # align 0x4
                 # size 0x4
                 self.align()
                 self.swap("<L")
+                current_offset = self.fp.tell()
             elif action in [0x8E, ]: # 06
                 # align 0x4
                 # size 0x1C
                 self.align()
-                pass # TODO
+                self.swap("<L") # TODO: follow the pointer
+                self.swap("<L")
+                self.swap("<H")
+                self.swap("<H")
+                self.swap("<L") # TODO: follow the pointer
+                self.swap("<L")
+                self.swap("<L")
+                self.swap("<L")
+                current_offset = self.fp.tell()
+                # TODO
             elif action in [0x8F, ]: # 07
                 # align 0x4
                 # size 0x14
                 self.align()
-                pass # TODO
+                self.skip(0x14) # TODO: temporary
+                current_offset = self.fp.tell()
+                # TODO
             elif action in [0x94, ]: # 08
                 # align 0x4
                 # size 0x4
                 self.align()
-                pass # TODO
+                self.swap("<L") # TODO: where does it point to?
+                current_offset = self.fp.tell()
             elif action in [0x9B, ]: # 09
                 # align 0x4
                 # size 0x18
                 self.align()
-                pass # TODO
+                self.swap("<L") # TODO: follow the pointer
+                self.swap("<L")
+                self.swap("<L") # TODO: follow the pointer
+                self.swap("<L")
+                self.swap("<L")
+                self.swap("<L")
+                current_offset = self.fp.tell()
+                # TODO
             elif action in [0xA1, 0xA4, 0xA5, 0xA6, 0xA7, ]: # 0A
                 # align 0x4
                 # size 0x4
                 self.align()
                 self.swap("<L")
+                current_offset = self.fp.tell()
             elif action in [0xA2, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB5, ]: # 0B
                 # align 0x1
                 # size 0x1
                 self.skip(0x1)
+                current_offset = self.fp.tell()
             elif action in [0xA3, 0xB6, ]: # 0C
                 # align 0x1
                 # size 0x2
                 self.swap("<H")
+                current_offset = self.fp.tell()
             else: # 0D
+                current_offset = self.fp.tell()
                 continue
 
 
@@ -412,7 +446,7 @@ class AptFileConverter:
     def align(self) -> None:
         offset = self.fp.tell()
         offset += 0x3
-        offset &= 0xFC
+        offset &= 0xFFFFFFFC
         self.fp.seek(offset, os.SEEK_SET)
 
 
