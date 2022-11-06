@@ -261,27 +261,78 @@ class AptFileConverter:
         self.fp.seek(self.apt_data_offset + actions_offset, os.SEEK_SET)
         while True:
             action = self.swap("B")
+            # 006B6730
             if action == 0:
                 break
-            elif action <= 0x76:
-                continue
-            elif action in [0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F, 0x80, 0x82, 0x84, 0x85, 0x86, 0x89, 0x8A, 0x8D, 0x90, 0x91, 0x92, 0x93, 0x95, 0x97, 0x98, 0x9A, 0x9C, 0x9E, 0xA0, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, ]:
-                continue
-            elif action in [0xA2, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB5, ]:
-                self.fp.seek(0x1, os.SEEK_CUR)
-            elif action in [0x81, 0x87, 0x99, 0x9D, 0x9F, 0xB8, ]:
-                self.align()
-                self.fp.seek(0x4, os.SEEK_CUR)
-            elif action in [0xA1, 0xA4, 0xA5, 0xA6, 0xA7, ]:
+            elif action in [0x77, 0xB4, 0xB7, ]: # 00
+                # align 0x1
+                # size 0x4
+                self.swap("<L")
+            elif action in [0x81, 0x87, 0x99, 0x9D, 0x9F, 0xB8, ]: # 01
+                # align 0x4
+                # size 0x4
                 self.align()
                 self.swap("<L")
-            # TODO
-                
+            elif action in [0x83, ]: # 02
+                # align 0x4
+                # size 0x8
+                self.align()
+                pass # TODO
+            elif action in [0x88, 0x96, ]: # 03
+                # align 0x4
+                # size 0x8
+                self.align()
+                pass # TODO
+            elif action in [0x8B, ]: # 04
+                # align 0x4
+                # size 0x4
+                self.align()
+                pass # TODO
+            elif action in [0x8C, ]: # 05
+                # align 0x4
+                # size 0x4
+                self.align()
+                self.swap("<L")
+            elif action in [0x8E, ]: # 06
+                # align 0x4
+                # size 0x1C
+                self.align()
+                pass # TODO
+            elif action in [0x8F, ]: # 07
+                # align 0x4
+                # size 0x14
+                self.align()
+                pass # TODO
+            elif action in [0x94, ]: # 08
+                # align 0x4
+                # size 0x4
+                self.align()
+                pass # TODO
+            elif action in [0x9B, ]: # 09
+                # align 0x4
+                # size 0x18
+                self.align()
+                pass # TODO
+            elif action in [0xA1, 0xA4, 0xA5, 0xA6, 0xA7, ]: # 0A
+                # align 0x4
+                # size 0x4
+                self.align()
+                self.swap("<L")
+            elif action in [0xA2, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB5, ]: # 0B
+                # align 0x1
+                # size 0x1
+                self.skip(0x1)
+            elif action in [0xA3, 0xB6, ]: # 0C
+                # align 0x1
+                # size 0x2
+                self.swap("<H")
+            else: # 0D
+                continue
 
 
     def convert_const_file(self) -> None:
         self.fp.seek(self.const_file_offset, os.SEEK_SET)
-        self.fp.seek(0x14, os.SEEK_CUR)
+        self.skip(0x14)
         self.movie_offset = self.swap("<L")
         constants_count = self.swap("<L")
         constants_offset = self.swap("<L")
@@ -340,7 +391,7 @@ class AptFileConverter:
         self.fp.seek(vertex_offset, os.SEEK_SET)
         self.swap("<L")
         self.swap("<L")
-        self.fp.seek(0x4, os.SEEK_CUR)
+        self.skip(0x4)
         self.swap("<L")
         self.swap("<L")
 
@@ -352,6 +403,10 @@ class AptFileConverter:
         self.fp.seek(-size, os.SEEK_CUR)
         self.fp.write(buff)
         return struct.unpack(fmt, buff)[0]
+
+
+    def skip(self, size: int) -> int:
+        self.fp.seek(size, os.SEEK_CUR)
 
 
     def align(self) -> None:
